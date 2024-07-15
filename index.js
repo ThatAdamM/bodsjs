@@ -270,7 +270,7 @@ class BODSClient {
         return new Promise((resolve, reject) => {
             fetch(url)
                 .then((res) => {
-                    if(res.status == 200) {
+                    if (res.status == 200) {
                         res.json().then((result) => resolve(result))
                     } else {
                         reject("Request failed with status code " + res.status + ". " + res.statusText)
@@ -308,23 +308,25 @@ class BODSClient {
             }
         }
         // Fetch it with the data
-        fetch("https://data.bus-data.dft.gov.uk/api/v1/datafeed" + queryString)
-            .then((res) => {
-                if (res.status == 200) {
-                    res.text().then(async (resultXml) => {
-                        var parser = new xml2js.Parser({ trim: true, explicitArray: false });
-                        let result = await parser.parseStringPromise(resultXml)
-                        console.log(result.Siri.ServiceDelivery.VehicleMonitoringDelivery.VehicleActivity[0].Extensions)
-                    })
-                }
-            })
-            .catch(() => {
-                reject("Error while connecting to API - Check your connection?")
-            })
+        return new Promise((resolve, reject) => {
+            fetch("https://data.bus-data.dft.gov.uk/api/v1/datafeed" + queryString)
+                .then((res) => {
+                    if (res.status == 200) {
+                        res.text().then(async (resultXml) => {
+                            var parser = new xml2js.Parser({ trim: true, explicitArray: false });
+                            let result = await parser.parseStringPromise(resultXml)
+                            resolve(result)
+                        })
+                    }
+                })
+                .catch(() => {
+                    reject("Error while connecting to API - Check your connection?")
+                })
+        })
 
     }
 
-    
+
 }
 
 

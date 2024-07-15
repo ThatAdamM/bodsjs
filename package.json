@@ -1,6 +1,6 @@
 {
   "name": "bodsjs",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "API Wrapper for the UK Bus Open Data Service",
   "main": "index.js",
   "scripts": {
@@ -10,5 +10,9 @@
   "license": "ISC",
   "dependencies": {
     "xml2js": "^0.6.2"
-  }
+  },
+  "repository": {
+    "url": "https://github.com/ThatAdamM/bodsjs"
+  },
+  "homepage": "https://thatadamm.github.io/BODSJS/BODSClient.html"
 }
