@@ -1,0 +1,353 @@
+// Import libraries. JUST ONE! (Hopefully)
+let xml2js = require("xml2js")
+
+// Typedefs made with this documentation: https://data.bus-data.dft.gov.uk/guidance/requirements/?section=apireference
+
+// Request Docs are as follows:
+
+/**
+ * @typedef {Object} TimetableDatasetOptions 
+ * @prop {Number} [adminArea] - adminArea is a field within the data, and therefore if any of the TransXChange files within a specific data set has the specified adminArea the whole data set will be returned. A list of adminAreas can be found on the NPTG website: https://data.gov.uk/dataset/3b1766bf-04a3-44f5-bea9-5c74cf002e1d/national-public-transport-gazetteer-nptg
+ * @prop {Date|String} [endDateStart] - Limit results to data sets with services with end dates after this date. String formatted as YYYY-MM-DDTHH:MM:SS. 
+ * @prop {Date|String} [endDateEnd] - Limit results to data sets with services with end dates before this date. String formatted as YYYY-MM-DDTHH:MM:SS. 
+ * @prop {Number} [limit] - The maximum number of records to return. 
+ * @prop {Date|String} [modifiedDate] - Limit results to data sets that have been created/updated since the specified date. String formatted as YYYY-MM-DDTHH:MM:SS. 
+ * @prop {String[]|String} [noc] - Input a comma separated list of (or array of strings including) National Operator Codes to limit results to data sets of the publishers associated to the specified National Operator Code. A publisher may have multiple National Operator Codes associated with it. Your response will include data for all National Operator Codes associated with that publisher. Not just those included in the query parameter. National Operator codes can be found on the Traveline website, https://www.travelinedata.org.uk/traveline-open-data/transport-operations/about-2/
+ * @prop {Number} [offset] - Return results that match the query starting from the specified offset. e.g. &offset=10&limit=25 returns results from 11 to 35. The default is set to 0. 
+ * @prop {String} [search] - Return data sets where the data set name, data set description, organisation name, or admin area name contain the specified value. 
+ * @prop {('published'|'inactive')} [status] - Limit results to data sets with the specified status String, accepted values are published, inactive. 
+ * @prop {Date|String} [startDateStart] - Limit results to data sets with services with start dates after this date. String formatted as YYYY-MM-DDTHH:MM:SS. 
+ * @prop {Date|String} [startDateEnd] - Limit results to data sets with services with start dates before this date. String formatted as YYYY-MM-DDTHH:MM:SS. 
+ * @prop {String} [datasetID] - Limit results to a specific data set of a publisher using the data set ID. 
+ * @prop {('red'|'amber'|'green')} [dqRag] - Data rating. Limit results to data sets with the specified String value, accepted values are red, amber, green. 
+ * @prop {Boolean} [bodsCompliance] - Is BODS compliant. Limit results to data sets with the specified boolean value. 
+ */
+
+/**
+ * @typedef {Object} BoundingBox - A bounding box to be used in the boundingBox API call parameter
+ * @prop {Number} minLat - Smallest latitude in the selection
+ * @prop {Number} maxLat - Largest latitude in the selection
+ * @prop {Number} minLng - Smallest longitude in the selection
+ * @prop {Number} maxLng - Largest longitude in the selection
+ */
+
+/**
+ * @typedef {Object} FaresDatasetOptions
+ * @prop {String} [noc] - Input a comma separated list of National Operator Codes to limit results to data sets of the publishers associated to the specified National Operator Code. A publisher may have multiple National Operator Codes associated with it. Your response will include data for all National Operator Codes associated with that publisher. Not just those included in the query parameter. National Operator codes can be found on the Traveline website, https://www.travelinedata.org.uk/traveline-open-data/transport-operations/about-2/
+ * @prop {('published'|'inactive')} [status] - Limit results to data sets with the specified status String, accepted values are published, inactive. 
+ * @prop {BoundingBox} [boundingBox] - Limit results to fares data sets that contain information for the area within the rectangular boundingBox you set using `require("bodsjs").createBoundingBox()`.
+ * @prop {Number} [limit] - The maximum number of records to return. 
+ * @prop {Number} [offset] - Return results that match the query starting from the specified offset. e.g. &offset=10&limit=25 returns results from 11 to 35. The default is set to 0. 
+ */
+
+/**
+ * @typedef {Object} BusLocationDatafeedOptions
+ * @prop {BoundingBox} [boundingBox] - Limit results to fares data sets that contain information for the area within the rectangular boundingBox you set using `require("bodsjs").createBoundingBox()`.
+ * @prop {String} [operatorRef] - Limit results to data feeds with the operatorRef. The National Operator Code is often used by publishers as the input for operatorRef, which can be found on the Traveline website, https://www.travelinedata.org.uk/traveline-open-data/transport-operations/about-2/
+ * @prop {String} [lineRef] - Limit results to bus location data with the specified Line Ref. 
+ * @prop {String} [producerRef] - Limit results to bus location data with the specified Producer Ref. 
+ * @prop {String} [originRef] - Limit results to bus location data with the specified Origin Ref. Inputs for Origin Ref are normally National Public Transport Access Nodes (NaPTAN), which can be found on the following website: https://data.gov.uk/dataset/ff93ffc1-6656-47d8-9155-85ea0b8f2251/national-public-transport-access-nodes-naptan
+ * @prop {String} [destinationRef] - Limit results to bus location data with the specified Destination Ref. Inputs for Destination Ref are normally National Public Transport Access Nodes (NaPTAN), which can be found on the following website: https://data.gov.uk/dataset/ff93ffc1-6656-47d8-9155-85ea0b8f2251/national-public-transport-access-nodes-naptan
+ * @prop {String} [vehicleRef] - Limit results to bus location data with the specified vehicleRef. The vehicleRef is a unique reference for the vehicle that is consistent and is generated by the vehicle equipment. 
+ */
+
+// Now, for response docs:
+
+// TIMETABLES
+/**
+ * @typedef {Object} AdminAreaObject Contains ATCO Codes and Admin Area names
+ * @prop {String} atco_code The ATCO code for the area - See https://mullinscr.github.io/naptan/atco_codes/#lookup-table
+ * @prop {String} name The name of the area
+ */
+
+/**
+ * @typedef {Object} LocalityObject
+ * @prop {String} gazetteer_id The National Public Transport Gazeteer (NPTG) ID that relates to the locality
+ * @prop {String} name The locality name
+ */
+
+/**
+ * @typedef {Object} TimetableDatasetResponseResult
+ * @prop {Number} id The timetable entry ID
+ * @prop {String} created The time the timetable entry was created
+ * @prop {String} modified The last time the timetable entry was updated/edited
+ * @prop {String} operatorName The name of the bus company who operates the lines in this entry
+ * @prop {String[]} noc An array containing the National Operator Codes linked to this entry
+ * @prop {String} name The name of this timetable dataset entry
+ * @prop {String} description The description of this timetable dataset entry
+ * @prop {String} comment Additional comment to this dataset
+ * @prop {('inactive'|'published')} status The status of this dataset entry - published or inactive
+ * @prop {String} url The URL to download this dataset entry
+ * @prop {String} extension The file type/extension of the file located at the URL (see url property)
+ * @prop {String[]} lines An array containing a list of line numbers/names this affects
+ * @prop {String} firstStartDate
+ * @prop {String} lastStartDate
+ * @prop {String} lastEndDate
+ * @prop {AdminAreaObject} adminAreas Array containing objects with ATCO Codes and area names. Often relates to a region of the UK
+ * @prop {LocalityObject} locaities Array containing objects with NPTG IDs and their names. Often relates to a local area.
+ * @prop {String} dqScore How compliant the data is with the BODS standard. Given as a number and % sign
+ * @prop {('red'|'amber'|'green')} dqRag The rating based upon the BODS data standard score. Either "red", "amber" or "green"
+ * @prop {Boolean} bodsCompliance Whether the dataset is compliant with the BODS standards. Using data that isn't is not recommended
+ */
+
+// Will omit next and previous from the below results, as they will be used in a new function anyway :)
+/**
+ * @typedef {Object} TimetableDatasetResponse
+ * @prop {Number} count The number of entries found
+ * @prop {TimetableDatasetResponseResult[]} results Array of the found entries
+ */
+
+// BUS LOCATIONS
+
+/**
+ * @typedef {Object} BusLocationDataset Data containing location and other data for a bus
+ * @prop {String} RecordedAtTime String containing date/time when the data was last recorded
+ * @prop {String} ItemIdentifier String containing UUID that identifies this data
+ * @prop {String} ValidUntilTime String containing date/time of when this data expires
+ * @prop {Object} MonitoredVehicleJourney Contains information about the ongoing bus journey
+ * @prop {String} MonitoredVehicleJourney.LineRef String containing the line number this bus is operating on
+ * @prop {String} MonitoredVehicleJourney.DirectionRef The direction the bus is going. Usually "outbound" or "inbound"
+ * @prop {Object} MonitoredVehicleJourney.FramedVehicleJourneyRef Contains date information for this journey
+ * @prop {String} MonitoredVehicleJourney.FramedVehicleJourneyRef.DataFrameRef
+ * @prop {String} MonitoredVehicleJourney.FramedVehicleJourneyRef.DatedVehicleJourneyRef
+ * @prop {String} MonitoredVehicleJourney.PublishedLineName The published name of the line the bus is operating on
+ * @prop {String} MonitoredVehicleJourney.OperatorRef The operator running this bus journey
+ * @prop {String} MonitoredVehicleJourney.OriginRef The NAPTAN code for the stop/stand this journey started at
+ * @prop {String} MonitoredVehicleJourney.OriginName The name of the stop that this journey started at. May not include the full stop name!
+ * @prop {String} MonitoredVehicleJourney.DestinationRef The NAPTAN code for the stop/stand this journey will terminate at
+ * @prop {String} MonitoredVehicleJourney.DestinationName The name of the stop that this journey will terminate at. May not include the full stop name!
+ * @prop {String} MonitoredVehicleJourney.OriginAimedDepartureTime String containing date/time when the bus was due to leave its origin
+ * @prop {String} MonitoredVehicleJourney.DestinationAimedArrivalTime String containing date/time when the bus was due to arrive at its destination
+ * @prop {Object} MonitoredVehicleJourney.VehicleLocation Object containing latitude and longitude of the buses
+ * @prop {String} MonitoredVehicleJourney.VehicleLocation.Longitude String containing number of the current longitude of the bus
+ * @prop {String} MonitoredVehicleJourney.VehicleLocation.Latitude String containing number of the current latitude of the bus
+ * @prop {String} MonitoredVehicleJourney.Bearing The current bearing/direction of the bus.
+ * @prop {String} MonitoredVehicleJourney.BlockRef
+ * @prop {String} MonitoredVehicleJourney.VehicleRef The number of the vehicle
+ * @prop {Object} Extensions Additional information about this bus
+ */
+
+/**
+ * Provides the base client infrastructure for using the Bus Open Data Service.
+ */
+class BODSClient {
+    #apikey = null;
+    /**
+     * Creates a new Bus Open Data Service client. 
+     * @argument {String} apikey Provide an API Key to identify your use of the API - Get one by signing in/up @ https://data.bus-data.dft.gov.uk/account/login/
+     */
+    constructor(apikey) {
+        if (!apikey) throw new Error("No API Key provided when creating a new BODSClient - Get one by signing in/up at https://data.bus-data.dft.gov.uk/account/login/")
+        this.#apikey = apikey;
+    }
+
+    /**
+     * Performs a timetable dataset query based on the options provided.
+     * @param {TimetableDatasetOptions} opts Options for the Timetable dataset query
+     * @returns {Promise<TimetableDatasetResponse>} The query's results.
+     */
+    fetchTimetableDataset(opts) {
+        // Options are added to this string when they are used.
+        let queryString = `?api_key=${this.#apikey}`
+        if (opts) {
+            // startDateEnd
+            if (opts.startDateEnd) {
+                // Determine the type, and add its relevant string on
+                if (typeof opts.startDateEnd == "string") {
+                    queryString += "&startDateEnd=" + opts.startDateEnd
+                } else if (opts.startDateEnd instanceof Date) {
+                    queryString += "&startDateEnd=" + opts.startDateEnd.toISOString().substring(0, 19)
+                } else {
+                    // TypeError - You didn't provide a string or `new Date()` in the startDateEnd parameter! :O
+                    throw new TypeError("Invalid startDateEnd parameter type - Expected either String or Date Object")
+                }
+            } else if (opts.startDateStart) {
+                // Determine the type, and add its relevant string on
+                if (typeof opts.startDateStart == "string") {
+                    queryString += "&startDateStart=" + opts.startDateStart
+                } else if (opts.startDateStart instanceof Date) {
+                    queryString += "&startDateStart=" + opts.startDateStart.toISOString().substring(0, 19)
+                } else {
+                    // TypeError - You didn't provide a string or `new Date()` in the startDateStart parameter! :O
+                    throw new TypeError("Invalid startDateStart parameter type - Expected either String or Date Object")
+                }
+            } else if (opts.endDateStart) {
+                // Determine the type, and add its relevant string on
+                if (typeof opts.endDateStart == "string") {
+                    queryString += "&endDateStart=" + opts.endDateStart
+                } else if (opts.endDateStart instanceof Date) {
+                    queryString += "&endDateStart=" + opts.endDateStart.toISOString().substring(0, 19)
+                } else {
+                    // TypeError - You didn't provide a string or `new Date()` in the endDateStart parameter! :O
+                    throw new TypeError("Invalid endDateStart parameter type - Expected either String or Date Object")
+                }
+            } else if (opts.endDateEnd) {
+                // Determine the type, and add its relevant string on
+                if (typeof opts.endDateEnd == "string") {
+                    queryString += "&endDateEnd=" + opts.endDateEnd
+                } else if (opts.endDateEnd instanceof Date) {
+                    queryString += "&endDateEnd=" + opts.endDateEnd.toISOString().substring(0, 19)
+                } else {
+                    // TypeError - You didn't provide a string or `new Date()` in the endDateEnd parameter! :O
+                    throw new TypeError("Invalid endDateEnd parameter type - Expected either String or Date Object")
+                }
+            } else if (opts.modifiedDate) {
+                // Determine the type, and add its relevant string on
+                if (typeof opts.modifiedDate == "string") {
+                    queryString += "&modifiedDate=" + opts.modifiedDate
+                } else if (opts.modifiedDate instanceof Date) {
+                    queryString += "&modifiedDate=" + opts.modifiedDate.toISOString().substring(0, 19)
+                } else {
+                    // TypeError - You didn't provide a string or `new Date()` in the modifiedDate parameter! :O
+                    throw new TypeError("Invalid modifiedDate parameter type - Expected either String or Date Object")
+                }
+            } else if (opts.adminArea) {
+                queryString += "&adminArea=" + opts.adminArea
+            } else if (opts.bodsCompliance) {
+                if (typeof opts.bodsCompliance == Boolean) {
+                    queryString += "&bodsCompliance=" + opts.bodsCompliance.toString()
+                } else {
+                    throw new TypeError("Invalid bodsCompliance parameter type - Expected Boolean, got " + typeof opts.bodsCompliance)
+                }
+            } else if (opts.datasetID) {
+                queryString += "&datasetID=" + opts.datasetID
+            } else if (opts.dqRag) {
+                queryString += "&dqRag=" + opts.dqRag
+            } else if (opts.limit) {
+                queryString += "&limit=" + opts.limit
+            } else if (opts.noc) {
+                if (typeof opts.noc == "string") {
+                    queryString += "&noc=" + opts.noc
+                } else if (opts.noc instanceof Array) {
+                    queryString += "&noc=" + opts.noc.join(",")
+                } else {
+                    throw new TypeError("Incorrect value for noc parameter - Expected either a string or Array of strings, but got " + typeof opts.noc)
+                }
+            } else if (opts.offset) {
+                queryString += "&offset=" + opts.offset
+            } else if (opts.search) {
+                queryString += "&search=" + opts.search
+            } else if (opts.status) {
+                queryString += "&status=" + opts.status
+            }
+        }
+
+        // Now, begin the query
+        return new Promise((resolve, reject) => {
+            fetch("https://data.bus-data.dft.gov.uk/api/v1/dataset" + queryString)
+                .then((res) => {
+                    // If status is all good, get main response body, and return it.
+                    if (res.status == 200) {
+                        res.json().then((result) => {
+                            resolve(result)
+                        })
+                        // If status has returned a 404 (when datasetID is not found), return an empty response object for consistency
+                    } else if (res.status == 404) {
+                        resolve({
+                            count: 0,
+                            next: null,
+                            previous: null,
+                            results: []
+                        })
+                        // Otherwise, it's all gone horribly wrong. Reject and send an error
+                    } else {
+                        res.text().then((result) => {
+                            reject("Failed to fetch dataset from BODS API - " + result)
+                        })
+                    }
+                })
+                .catch(() => {
+                    reject("Error while connecting to API - Check your connection?")
+                })
+        })
+    }
+
+    /**
+     * Fetches the next or previous page from the URL 
+     * @param {String} url The URL provided in the `next` or `previous` attributes of a timetable dataset API call
+     */
+    fetchTimetablePage(url) {
+        return new Promise((resolve, reject) => {
+            fetch(url)
+                .then((res) => {
+                    if(res.status == 200) {
+                        res.json().then((result) => resolve(result))
+                    } else {
+                        reject("Request failed with status code " + res.status + ". " + res.statusText)
+                    }
+                })
+                .catch(() => {
+                    reject("Error while connecting to API - Check your connection?")
+                })
+
+        })
+    }
+    /**
+     * Fetches the Bus Location datafeed and converts results to JSON
+     * @param {BusLocationDatafeedOptions} opts 
+     * @returns {BusLocationDataset[]} Array of buses and their related information
+     */
+    fetchBusLocationDatafeed(opts) {
+        let queryString = "?api_key=" + this.#apikey
+        if (opts) {
+            if (opts.boundingBox) {
+                let b = opts.boundingBox;
+                queryString += `&boundingBox=${b.minLng},${b.minLat},${b.maxLng},${b.maxLat}`
+            } else if (opts.destinationRef) {
+                queryString += `&destinationRef=${opts.destinationRef}`
+            } else if (opts.lineRef) {
+                queryString += `&lineRef=${opts.lineRef}`
+            } else if (opts.operatorRef) {
+                queryString += `&operatorRef=${opts.operatorRef}`
+            } else if (opts.originRef) {
+                queryString += `&originRef=${opts.originRef}`
+            } else if (opts.producerRef) {
+                queryString += `&producerRef=${opts.producerRef}`
+            } else if (opts.vehicleRef) {
+                queryString += `&vehicleRef=${opts.vehicleRef}`
+            }
+        }
+        // Fetch it with the data
+        fetch("https://data.bus-data.dft.gov.uk/api/v1/datafeed" + queryString)
+            .then((res) => {
+                if (res.status == 200) {
+                    res.text().then(async (resultXml) => {
+                        var parser = new xml2js.Parser({ trim: true, explicitArray: false });
+                        let result = await parser.parseStringPromise(resultXml)
+                        console.log(result.Siri.ServiceDelivery.VehicleMonitoringDelivery.VehicleActivity[0].Extensions)
+                    })
+                }
+            })
+            .catch(() => {
+                reject("Error while connecting to API - Check your connection?")
+            })
+
+    }
+
+    
+}
+
+
+
+/**
+ * Creates a bounding box to be used in API Calls
+ * @param {Number} minLat - Smallest latitude to use
+ * @param {Number} maxLat - Largest latitude to use
+ * @param {Number} minLng - Smallest longitude to use
+ * @param {Number} maxLng - Largest longitude to use
+ * @returns {BoundingBox|undefined} - A BoundingBox Object to use in the boundingBox parameters of API Calls, or undefined if not all parameters are given.
+ */
+function createBoundingBox(minLat, maxLat, minLng, maxLng) {
+    if (minLat && maxLat && minLng && maxLng) {
+        return {
+            minLat: Number(minLat),
+            maxLat: Number(maxLat),
+            minLng: Number(minLng),
+            maxLng: Number(maxLng)
+        }
+    } else {
+        return undefined;
+    }
+}
+
+module.exports = { BODSClient, createBoundingBox };
