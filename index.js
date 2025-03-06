@@ -1,5 +1,5 @@
-// Import libraries. JUST ONE! (Hopefully)
-let xml2js = require("xml2js")
+// Import libraries
+let xml2js = require("xml2js");
 
 // Typedefs made with this documentation: https://data.bus-data.dft.gov.uk/guidance/requirements/?section=apireference
 
@@ -142,6 +142,7 @@ class BODSClient {
     }
 
     /**
+     * @deprecated ⚠️ Data fetched is in an unconverted format - Try the new TimetablesManager class instead.
      * Performs a timetable dataset query based on the options provided.
      * @param {TimetableDatasetOptions} opts Options for the Timetable dataset query
      * @returns {Promise<TimetableDatasetResponse>} The query's results.
@@ -263,6 +264,7 @@ class BODSClient {
     }
 
     /**
+     * @deprecated ⚠️ Data fetched is in an unconverted format - Try the new TimetablesManager class instead.
      * Fetches the next or previous page from the URL 
      * @param {String} url The URL provided in the `next` or `previous` attributes of a timetable dataset API call
      */
@@ -282,6 +284,7 @@ class BODSClient {
 
         })
     }
+
     /**
      * Fetches the Bus Location datafeed and converts results to JSON
      * @param {BusLocationDatafeedOptions} opts 
@@ -326,10 +329,18 @@ class BODSClient {
 
     }
 
-
+    /**
+     * Downloads data for a specific region into `/.bods-data/`. Should be done no more than every 24 hours. 
+     * For use with the `TimetablesManager` class - See more info on Github.
+     * @param {('all'|'ea'|'em'|'england'|'london'|'ne'|'nw'|'scotland'|'sw'|'se'|'wales'|'wm'|'yorkshire')} region The region to fetch. 
+     * @returns {Promise} A promise. TimetableManager instances should only 
+     */
+    static async downloadTimetableData(region) {
+        await require("./databaseBuilder.js")(region); // Code in gtfsToJSON.js
+        this.region = region;
+        return;
+    }
 }
-
-
 
 /**
  * Creates a bounding box to be used in API Calls
@@ -352,4 +363,421 @@ function createBoundingBox(minLat, maxLat, minLng, maxLng) {
     }
 }
 
-module.exports = { BODSClient, createBoundingBox };
+/**
+ * @typedef {Object} Agency An object containing information on an agency
+ * @prop {String} agency_id The ID of the agency
+ * @prop {String} agency_name The name of the agency
+ * @prop {String} agency_url The related URL. Many (if not all) of these link to traveline.
+ * @prop {String} agency_timezone Timezone data, in the IANA TZDB format.
+ * @prop {String} agency_lang ISO 639-1 code for the agency's main language
+ * @prop {String} agency_phone Phone number for the agency
+ * @prop {String} agency_noc National Operator Code for this agency
+ */
+
+/**
+ * @typedef {Object} Route An object containing information about a bus route
+ * @prop {Number} route_id The ID of this route
+ * @prop {String} agency_id The ID of the agency operating this route
+ * @prop {String} route_short_name The shortened name of this route (E.G `X17`)
+ * @prop {String} route_long_name The longer name of this route (often not provided).
+ * @prop {Number} route_type An integer determining the type of route.
+ */
+
+/**
+ * @typedef {ShapePoint[]} Shape An array of individual shape points
+ */
+
+/**
+ * @typedef {Object} ShapePoint An object containing information about a bus route shape. This is not the whole shape, but a single point along it.
+ * @prop {Number} id A unique ID for this entry
+ * @prop {String} shape_id The ID of the shape this entry belongs to
+ * @prop {Number} shape_pt_lat The latitude of this point
+ * @prop {Number} shape_pt_lon The longitude of this point
+ * @prop {Number} shape_pt_sequence Where in the sequence of all ShapePoints this point comes (zero-indexed).
+ * @prop {String} shape_dist_travelled The distance from the start of the shape (often not provided). 
+ */
+
+/**
+ * @typedef {(0|1|2|3)} pickup_type 
+ * 0 = Regularly scheduled pickup 
+ * 1 = No pickup available
+ * 2 = Must phone the agency to arrange pickup
+ * 3 = Must communicate with driver to arrange pickup
+ */
+
+/**
+ * @typedef {(0|1)} drop_off_type
+ * 0 = Passengers can be dropped off here
+ * 1 = Passengers cannot be dropped off here
+ */
+
+/**
+ * @typedef {Object} StopTime An object containing information about a time when a bus stops along a trip
+ * @prop {Number} id A unique ID for this entry
+ * @prop {String} trip_id The ID of the trip that stops here
+ * @prop {Date} arrival_time The time the bus is due to arrive at the stop
+ * @prop {Date} departure_time The time the bus is due to leave the stop
+ * @prop {String} stop_id The ID of the stop this bus uses on this trip
+ * @prop {Number} stop_sequence Determines the order this stop comes on this trip (zero-indexed)
+ * @prop {String} stop_headsign What the bus headsign should display at this stop
+ * @prop {pickup_type} pickup_type If and how this stop boards passengers
+ * @prop {drop_off_type} drop_off_type If passengers can alight at this stop
+ * @prop {String} shape_dist_travelled The distance along the trip this stop can be found at (often not provided).
+ * @prop {Boolean} timepoint If this stop is a timing point (bus will stop and wait if early)
+ * @prop {String} stop_direction_name The direction buses go from this stop (often not provided).
+ */
+
+/**
+ * @typedef {(null|0|1|2|3|4)} location_type 
+ * 0 or null = A stop (or a platform, if part of a station)
+ * 1 = A station (contains multiple stops)
+ * 2 = Entrance/Exit (to a station)
+ * 3 = Generic Node (on a path through/to a station)
+ * 4 = Boarding Area (a specifc part of a station where people can board/alight vehicles)
+ */
+
+/**
+ * @typedef {Object} Stop An object containing information about a stop
+ * @prop {String} stop_id The BODS stop ID
+ * @prop {String} stop_code The printed stop ID, often presented on signage for easier reading
+ * @prop {String} stop_name The name of this stop.
+ * @prop {Number} stop_lat The latitude of this stop
+ * @prop {Number} stop_long The longitude of this stop
+ * @prop {Boolean} wheelchair_boarding If this stop allows for wheelchair boarding (false may mean no data provided, which is often the case)
+ * @prop {location_type} location_type The type of location this stop is
+ * @prop {String} parent_station The BODS Stop ID of the station that contains this stop
+ * @prop {String} platform_code The code for this platform (within a station) - E.G "A"
+ */
+
+/**
+ * @typedef {(0|1|2)} wheelchair_accessible
+ * 0 = No accessibility info
+ * 1 = Can accomodate at least 1 wheelchair rider
+ * 2 = Cannot accomodate any wheelchair riders
+ */
+
+/**
+ * @typedef {Object} Trip An object containing information about a bus trip along a route
+ * @prop {Number} route_id The ID of the route this bus is travelling along
+ * @prop {Number} service_id The ID of the service that this bus is operating on (obsolete due to no calendar files provided)
+ * @prop {String} trip_id The ID of this trip 
+ * @prop {String} trip_headsign What the bus headsign should display for this trip (should be overrided by the StopTime stop_headsign property as it arrives at that stop)
+ * @prop {Number} direction_id Direction of travel (0 = outbound, 1 = inbound)
+ * @prop {String} block_id Specifies the block that this trip belongs to
+ * @prop {String} shape_id The shape that corresponds to the trip
+ * @prop {wheelchair_accessible} wheelchair_accessible Whether wheelchairs users can board on this trip
+ * @prop {String} trip_direction_name The name of the direction the bus is going
+ * @prop {String} vehicle_journey_code The code of this bus journey
+ */
+
+/**
+ * Management class for easy reading of the database installed using `BODSClient.downloadtimetableData(region);`
+ * @example ```javascript
+ * const {TimetablesManager, BODSClient} = require("bodsjs");
+ * await BODSClient.downloadTimetableData('england');
+ * let timetables = new TimetablesManager();
+ */
+class TimetablesManager {
+    #database;
+
+    /**
+     * Loads database, allowing for easy querying with supplied methods
+     */
+    constructor() {
+        let { Sequelize, DataTypes } = require("sequelize");
+        this.#database = new Sequelize({
+            dialect: 'sqlite',
+            storage: path.join(process.cwd(), "/.bods-data/database.sqlite"),
+            logging: () => { }
+        });
+        // Create database tables
+        /**
+         * Agencies database access
+         */
+        this.Agencies = this.#database.define("Agency", {
+            agency_id: {
+                primaryKey: true,
+                type: DataTypes.STRING
+            },
+            agency_name: DataTypes.STRING,
+            agency_url: DataTypes.STRING,
+            agency_timezone: DataTypes.STRING,
+            agency_lang: DataTypes.STRING,
+            agency_phone: DataTypes.STRING,
+            agency_noc: DataTypes.STRING
+        });
+
+        /**
+         * Routes database access
+         */
+        this.Routes = this.#database.define("Route", {
+            route_id: {
+                primaryKey: true,
+                type: DataTypes.NUMBER
+            },
+            agency_id: DataTypes.STRING,
+            route_short_name: DataTypes.STRING,
+            route_long_name: DataTypes.STRING,
+            route_type: DataTypes.NUMBER
+        })
+
+        /**
+         * Route Shapes database access
+         */
+        this.Shapes = this.#database.define("Shape", {
+            shape_id: DataTypes.STRING,
+            shape_pt_lat: DataTypes.NUMBER,
+            shape_pt_lon: DataTypes.NUMBER,
+            shape_pt_sequence: DataTypes.NUMBER,
+            shape_dist_travelled: DataTypes.STRING // Unsure why - Should be able to convert to number fine.
+        });
+
+        /**
+         * StopTimes database access
+         */
+        this.StopTimes = this.#database.define("StopTime", {
+            trip_id: DataTypes.STRING,
+            arrival_time: DataTypes.TIME,
+            departure_time: DataTypes.TIME,
+            stop_id: DataTypes.STRING,
+            stop_sequence: DataTypes.NUMBER,
+            stop_headsign: DataTypes.STRING,
+            pickup_type: DataTypes.NUMBER,
+            drop_off_type: DataTypes.NUMBER,
+            shape_dist_travelled: DataTypes.STRING, // Keeping it consistent with Shape table
+            timepoint: DataTypes.BOOLEAN,
+            stop_direction_name: DataTypes.STRING
+        });
+
+        /**
+         * Stops database access
+         */
+        this.Stops = this.#database.define("Stop", {
+            stop_id: {
+                primaryKey: true,
+                type: DataTypes.STRING
+            },
+            stop_code: DataTypes.STRING,
+            stop_name: DataTypes.STRING,
+            stop_lat: DataTypes.NUMBER,
+            stop_lon: DataTypes.NUMBER,
+            wheelchair_boarding: DataTypes.BOOLEAN,
+            location_type: DataTypes.NUMBER,
+            parent_station: DataTypes.STRING,
+            platform_code: DataTypes.STRING
+        });
+
+        /**
+         * Trips database access
+         */
+        this.Trips = this.#database.define("Trip", {
+            route_id: DataTypes.NUMBER,
+            service_id: DataTypes.NUMBER,
+            trip_id: {
+                primaryKey: true,
+                type: DataTypes.STRING
+            },
+            trip_headsign: DataTypes.STRING,
+            direction_id: DataTypes.NUMBER,
+            block_id: DataTypes.STRING,
+            shape_id: DataTypes.STRING,
+            wheelchair_accessible: DataTypes.BOOLEAN,
+            trip_direction_name: DataTypes.STRING,
+            vehicle_journey_code: DataTypes.STRING
+        });
+        this.region = null;
+    }
+
+    /**
+     * Gets the agency by its ID 
+     * @param {String} ID 
+     * @returns {Promise<Agency>} The agency with this ID
+     */
+    async getAgencyById(ID) {
+        return await this.Agencies.findOne({
+            where: {
+                agency_id: ID
+            }
+        });
+    }
+
+    /**
+     * Searches for agencies with a name containing a substring
+     * @param {String} substring The string to search for
+     * @returns {Promise<Agency[]>} An array of found agencies
+     */
+    async getAgenciesByName(substring) {
+        return await this.Agencies.findAll({
+            where: {
+                [Op.like]: { agency_name: substring }
+            }
+        });
+    }
+
+    /**
+     * Gets an agency from its National Operator Code 
+     * @param {String} noc The National Operator Code to search for
+     * @returns {Promise<Agency>} The agency with this National Operator Code
+     */
+    async getAgencyByNOC(noc) {
+        return await this.Agencies.findOne({
+            where: {
+                agency_noc: noc
+            }
+        });
+    }
+
+    /**
+     * Finds a route from its route ID
+     * @param {Number} id The ID to search for
+     * @returns {Promise<Route>} The route with this ID
+     */
+    async getRouteById(id) {
+        return await this.Routes.findOne({
+            where: {
+                route_id: id
+            }
+        })
+    }
+
+    /**
+     * Gets routes by short name
+     * @param {String} name Name of the route (E.G X17)
+     * @returns {Promise<Route[]>} The routes that match this name
+     */
+
+    async getRoutesByName(name) {
+        return await this.Routes.findAll({
+            where: {
+                route_short_name: name
+            }
+        })
+    }
+
+    /**
+     * Gets a Shape (array of ShapePoints) by its ID
+     * @param {String} id The ID of the whole shape 
+     * @returns {Promise<Shape>}
+     */
+    async getShapeById(id) {
+        return await this.Shapes.findAll({
+            where: {
+                shape_id: id
+            }
+        })
+    }
+
+    /**
+     * Gets a list of StopTimes by their trip_id
+     * @param {String} id The ID of the trip to look for
+     * @returns {Promise<StopTime[]>} An array of different StopTimes
+     */
+    async getStopTimesByTrip(id) {
+        return await this.StopTimes.findAll({
+            where: {
+                trip_id: id
+            }
+        })
+    }
+
+    /**
+     * Gets a list of StopTimes by the stop the buses use
+     * @param {String} id The ID of the stop to look for
+     * @returns {Promise<StopTime[]>} An array of different StopTimes
+     */
+    async getStopTimesByStop(id) {
+        return await this.StopTimes.findAll({
+            where: {
+                stop_id: id
+            }
+        })
+    }
+
+    /**
+     * Gets a stop by its ID
+     * @param {String} id The ID of the stop
+     * @returns {Promise<Stop>} The Stop with this ID
+     */
+    async getStopById(id) {
+        return await this.Stops.findOne({
+            where: {
+                stop_id: id
+            }
+        })
+    }
+
+    /**
+     * Gets all stops by their parent station stop ID. 
+     * This (probably) won't work for every station.
+     * @param {String} parent ID of the parent stop
+     * @returns {Promise<Stop[]>} The list of stops within the station
+     */
+    async getStopsByStation(parent) {
+        return await this.Stops.findAll({
+            where: {
+                parent_station: parent
+            }
+        })
+    }
+    
+    /**
+     * Gets the stop by its code (often printed on signage at the stop)
+     * @param {String} code The code to search for
+     * @returns {Promise<Stop>} The stop with this code
+     */
+    async getStopByCode(code) {
+        return await this.Stops.findOne({
+            where: {
+                stop_code: code
+            }
+        })
+    }
+
+    /**
+     * Get all stops within an area using a Bounding Box
+     * @param {BoundingBox} boundingBox A BoundingBox that specifies an area to look in
+     * @returns {Promise<Stop[]>} A list of stops within the area
+     */
+    async getStopsByBounds(boundingBox) {
+        return await this.Stops.findAll({
+            where: {
+                stop_lat: { // Thing < that < BigThing
+                    [Op.lt]: boundingBox.maxLat,
+                    [Op.gt]: boundingBox.minLat
+                },
+                stop_lon: {
+                    [Op.lt]: boundingBox.maxLng,
+                    [Op.gt]: boundingBox.minLng
+                }
+            }
+        })
+    }
+
+    /**
+     * Get a trip by its ID
+     * @param {String} id The trip ID 
+     * @returns {Promise<Trip>} The trip with this ID
+     */
+    async getTripById(id) {
+        return await this.Trips.findOne({
+            where: {
+                trip_id: id
+            }
+        })
+    };
+
+    /**
+     * Get a list of trips from their Route IDs
+     * @param {Number} id The Route ID this trip runs on
+     * @returns {Promise<Trip[]>} A list of trips 
+     */
+    async getTripsFromRouteID(id) {
+        return await this.Trips.findAll({
+            where: {
+                route_id: id
+            }
+        })
+    }
+}
+
+module.exports = { BODSClient, createBoundingBox, TimetablesManager };
