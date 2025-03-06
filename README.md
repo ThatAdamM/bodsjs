@@ -53,7 +53,7 @@ The total size depends on the amount of data required, but could exceed 1GB for 
 ### CLI Usage
 
 Run the database build script like so:<br>
-`npm run download-region-data --prefix /node_modules/bodsjs -- --england`
+`npm run download-region-data --prefix node_modules/bodsjs -- --england`
 
 You can replace `--england` with a different region to fetch its timetables. See the region table below for a list of options.
 

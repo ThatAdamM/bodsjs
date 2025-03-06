@@ -73,10 +73,11 @@ async function main(region) {
             throw new Error("No download region specified!");
     }
     // Now we download it :)
-    require("node-fetch")(zipurl).then((res) => {
+    require("node-fetch")(zipurl).then(async (res) => {
         console.log("[i] Downloading...")
         let zipWriteStream;
         try {
+            await fs.promises.mkdir(path.join(__dirname, "/temp"));
             zipWriteStream = fs.createWriteStream(path.join(__dirname, "/temp/temp.zip"))
         } catch(e) {
             // Ah well, no .zip, no worries :D
