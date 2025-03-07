@@ -78,10 +78,10 @@ async function main(region) {
         let zipWriteStream;
         try {
             await fs.promises.mkdir(path.join(__dirname, "/temp"));
-            zipWriteStream = fs.createWriteStream(path.join(__dirname, "/temp/temp.zip"))
         } catch(e) {
-            // Ah well, no .zip, no worries :D
+            // Ah well, no folder, no worries :D
         }
+        zipWriteStream = fs.createWriteStream(path.join(__dirname, "/temp/temp.zip"))
         
         res.body.pipe(zipWriteStream);
         res.body.on("end", async () => {
@@ -341,8 +341,8 @@ async function main(region) {
             function checkForDone(fileJustDone) {
                 console.log(fileJustDone, "finished processing!")
                 totalDone++;
-                console.log(totalDone + "/6 Files Done")
-                if (totalDone != 6) return;
+                console.log(totalDone + "/8 Files Done")
+                if (totalDone != 8) return;
                 console.log("Cleaning up files...")
                 fs.readdir(path.join(__dirname, "/temp/"), (err, files) => {
                     if (err) {
