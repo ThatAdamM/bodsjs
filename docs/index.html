@@ -42,6 +42,203 @@
 
 
 
+    <section>
+        <article><h1>BODSJS</h1>
+<p>Javascript API Wrapper for the Bus Open Data Service</p>
+<h2>Getting Started</h2>
+<p>Step 1: Grab an API Key from the BODS Website - <a href="https:%5C/%5C/data.bus-data.dft.gov.uk/">https://data.bus-data.dft.gov.uk/</a><br>
+Step 2: Install BODSJS - <code>npm i bodsjs</code><br></p>
+<h2>Fetching Live Bus Data</h2>
+<h3>Example Usage</h3>
+<pre class="prettyprint source lang-javascript"><code>// Example: Fetch the location of all Arriva Northumbria (ANUM) buses running on the No. 1 line
+let { BODSClient } = require(&quot;bodsjs&quot;);
+let apikey = &quot;ABCDEFGHIJKLM123456789&quot;; 
+let bods = new BODSClient(apikey); 
+
+// Send the request - Returns a promise
+let request = bods.fetchBusLocationDatafeed({
+ operatorRef: &quot;ANUM&quot;,
+ lineRef: &quot;1&quot;
+});
+
+// Get the results of the request
+request.then((result) => {
+ // The request succeeded! Huzzah!
+ let busPos = [result.latitude, result.longitude];
+ // Do something with the data
+
+}).catch((error) => {
+ // The request failed - Log the error :(
+ console.error(error)
+});
+</code></pre>
+<h3>Documentation</h3>
+<ul>
+<li><a href="https://thatadamm.github.io/bodsjs/BODSClient.html">BODSClient Class</a></li>
+<li><a href="https://thatadamm.github.io/bodsjs/global.html#BusLocationDatafeedOptions"><code>fetchBusLocationDatafeed()</code> options</a></li>
+</ul>
+<p><strong>Note:</strong> The Bus Open Data Service updates bus location data every 10 seconds. Some services may take longer to send updates.</p>
+<h2>Fetching timetable data</h2>
+<p>To use the timetable data, you must first install the dataset. This can be done programantically, or as a CLI.</p>
+<p>Installing the dataset is not required if you do not need to use timetable data. It is saved into the <code>.bods-data</code> directory in your project's execution directory.</p>
+<p>The total size depends on the amount of data required, but could exceed 1GB for the national dataset, where smaller regions only require ~500MB.</p>
+<h3>CLI Usage</h3>
+<p>Run the database build script like so:<br>
+<code>node node_modules/bodsjs/databaseBuilder.js --england</code></p>
+<p>You can replace <code>--england</code> with a different region to fetch its timetables. See the region table below for a list of options.</p>
+<h3>API Usage</h3>
+<p>Use the static method <code>BODSClient.downloadTimetableData(suffix)</code>:</p>
+<pre class="prettyprint source lang-javascript"><code>const { BODSClient, TimetablesManager } = require(&quot;bodsjs&quot;);
+async main() {
+    await BODSClient.downloadTimetableData(&quot;england&quot;);
+
+    // Use your TimetablesManager after the data is downloaded.
+
+    // [...]
+}
+main();
+</code></pre>
+<p><strong>Note:</strong> You should only request from the BODS server at most once every 24 hours.</p>
+<h3>Available Regions</h3>
+<p>For CLI Usage, add <code>--&lt;suffix&gt;</code> as a CLI argument. E.G <code>--ea</code> or <code>--london</code>.<br>
+For API Usage, simple pass a suffix as a string.</p>
+<table>
+<thead>
+<tr>
+<th>Suffix</th>
+<th>Region</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>all</code></td>
+<td>National Data</td>
+</tr>
+<tr>
+<td><code>england</code></td>
+<td>England</td>
+</tr>
+<tr>
+<td><code>scotland</code></td>
+<td>Scotland</td>
+</tr>
+<tr>
+<td><code>wales</code></td>
+<td>Wales</td>
+</tr>
+<tr>
+<td><code>london</code></td>
+<td>London</td>
+</tr>
+<tr>
+<td><code>ea</code></td>
+<td>East Anglia</td>
+</tr>
+<tr>
+<td><code>em</code></td>
+<td>East Midlands</td>
+</tr>
+<tr>
+<td><code>ne</code></td>
+<td>North East</td>
+</tr>
+<tr>
+<td><code>nw</code></td>
+<td>North West</td>
+</tr>
+<tr>
+<td><code>se</code></td>
+<td>South East</td>
+</tr>
+<tr>
+<td><code>sw</code></td>
+<td>South West</td>
+</tr>
+<tr>
+<td><code>wm</code></td>
+<td>West Midlands</td>
+</tr>
+<tr>
+<td><code>yorkshire</code></td>
+<td>Yorkshire</td>
+</tr>
+</tbody>
+</table>
+<h3>Example usage</h3>
+<p>The <code>TimetablesManager</code> class helps to interface with a <code>sequelize</code> SQL query. Either:</p>
+<ul>
+<li>Use the provided helper methods</li>
+<li>Create custom queries with direct access to sequelize models</li>
+</ul>
+<pre class="prettyprint source lang-javascript"><code>// Prerequisite: Have the dataset installed at /.bods-data/ 
+const {TimetablesManager} = require(&quot;bodsjs&quot;);
+
+let manager = new TimetablesManager(); // Create manager. Prepares for db.
+
+// Using the helper functions:
+let routes = manager.getRoutesByName('X17');
+let stop = manager.getStopById('075071006A');
+
+// Or make your own queries with the database:
+let trips = await manager.Trips.findAll({
+    where: {
+        trip_headsign: &quot;Newcastle upon Tyne&quot; // All trips where the bus displays &quot;Newcastle upon Tyne&quot;
+    }
+});
+
+const { Op } = require(&quot;sequelize&quot;); // Use operators
+let stops = await manager.Trips.findAll({
+    where: {
+        [Op.like]: {stop_name: &quot;Station&quot;} // All stop_names that contain &quot;Station&quot;
+    }
+});
+
+</code></pre>
+<h3>Documentation</h3>
+<ul>
+<li><a href="https://thatadamm.github.io/bodsjs/TimetablesManager.html">Helper Methods in TimetablesManager Class</a></li>
+<li><a href="https://thatadamm.github.io/bodsjs/global.html">Database Objects</a></li>
+</ul>
+<h2>Current feature implementation</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Full Support</th>
+<th>Part Support</th>
+<th>No Support Yet</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Timetable Dataset API</td>
+<td>✅</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Bus Location Data</td>
+<td>✅</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Fares Dataset API</td>
+<td></td>
+<td></td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<p>The Timetable Dataset API is supported, however the physical data in each dataset has not been implemented. The URL property is provided in the meantime.
+This library is still in progress. More API support is in-the-works!</p>
+<h2>Licensing</h2>
+<p>The data from the API contains public sector information licensed under the Open Government Licence v3.0.
+Details of use can be found here: <a href="https:%5C/%5C/www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/</a></p>
+<p>It should also be noted that I am not affiliated with the Bus Open Data Service.
+The rest of the code provided by the library is licensed under the MIT license. See the LICENSE file for more info.</p></article>
+    </section>
+
 
 
 
@@ -56,7 +253,7 @@
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.3</a> on Thu Mar 06 2025 22:49:47 GMT+0000 (Greenwich Mean Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.3</a> on Fri Mar 07 2025 23:32:25 GMT+0000 (Greenwich Mean Time)
 </footer>
 
 <script> prettyPrint(); </script>

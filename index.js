@@ -507,6 +507,28 @@ class TimetablesManager {
             agency_noc: DataTypes.STRING
         });
 
+        this.Calendars = this.#database.define("Calendar", {
+            service_id: {
+                primaryKey: true,
+                type: DataTypes.NUMBER
+            },
+            monday: DataTypes.NUMBER,
+            tuesday: DataTypes.NUMBER,
+            wednesday: DataTypes.NUMBER,
+            thursday: DataTypes.NUMBER,
+            friday: DataTypes.NUMBER,
+            saturday: DataTypes.NUMBER,
+            sunday: DataTypes.NUMBER,
+            start_date: DataTypes.DATE,
+            end_date: DataTypes.DATE
+        });
+
+        this.CalendarDates = this.#database.define("CalendarDate", {
+            service_id: DataTypes.NUMBER,
+            date: DataTypes.DATE,
+            exception_type: DataTypes.NUMBER
+        });
+
         /**
          * Routes database access
          */
@@ -775,6 +797,32 @@ class TimetablesManager {
         return await this.Trips.findAll({
             where: {
                 route_id: id
+            }
+        })
+    }
+
+    /**
+     * Get a Calendar entry from their Service IDs
+     * @param {Number} id The service ID to look for
+     * @returns {Promise<Calendar>}
+     */
+    async getCalendarEntryFromServiceID(id) {
+        return await this.Calendars.findOne({
+            where: {
+                service_id: id
+            }
+        })
+    }
+
+    /**
+     * Get a list of Calendar Date entries from their Service IDs
+     * @param {Number} id The service ID to look for
+     * @returns {Promise<Calendar[]>}
+     */
+    async getCalendarDatesFromServiceID(id) {
+        return await this.CalendarDates.findAll({
+            where: {
+                service_id: id
             }
         })
     }

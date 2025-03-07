@@ -169,6 +169,28 @@ async function main(region) {
                 agency_noc: DataTypes.STRING
             });
 
+            const Calendars = database.define("Calendar", {
+                service_id: {
+                    primaryKey: true,
+                    type: DataTypes.NUMBER
+                },
+                monday: DataTypes.NUMBER,
+                tuesday: DataTypes.NUMBER,
+                wednesday: DataTypes.NUMBER,
+                thursday: DataTypes.NUMBER,
+                friday: DataTypes.NUMBER,
+                saturday: DataTypes.NUMBER,
+                sunday: DataTypes.NUMBER,
+                start_date: DataTypes.DATE,
+                end_date: DataTypes.DATE
+            });
+
+            const CalendarDates = database.define("CalendarDate", {
+                service_id: DataTypes.NUMBER,
+                date: DataTypes.DATE,
+                exception_type: DataTypes.NUMBER
+            });
+
             const Routes = database.define("Route", {
                 route_id: {
                     primaryKey: true,
@@ -306,6 +328,8 @@ async function main(region) {
                 [path.join(__dirname, "/temp/shapes.txt"), Shapes],
                 [path.join(__dirname, "/temp/stops.txt"), Stops],
                 [path.join(__dirname, "/temp/trips.txt"), Trips],
+                [path.join(__dirname, "/temp/calendar.txt"), Calendars],
+                [path.join(__dirname, "/temp/calendar_dates.txt"), CalendarDates],
             ];
 
             filesToConvert.forEach(async (file) => {
