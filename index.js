@@ -1,5 +1,6 @@
 // Import libraries
 let xml2js = require("xml2js");
+let path = require("path");
 
 // Typedefs made with this documentation: https://data.bus-data.dft.gov.uk/guidance/requirements/?section=apireference
 
