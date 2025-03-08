@@ -531,8 +531,8 @@ class TimetablesManager {
         });
         
             // CalendarDates <=-> Calendars
-            CalendarDates.belongsTo(Calendars, { foreignKey: "service_id", constraints: false });
-            Calendars.hasMany(CalendarDates, { foreignKey: "service_id", constraints: false });
+            this.CalendarDates.belongsTo(this.Calendars, { foreignKey: "service_id", constraints: false });
+            this.Calendars.hasMany(this.CalendarDates, { foreignKey: "service_id", constraints: false });
 
         /**
          * Routes database access
@@ -627,8 +627,8 @@ class TimetablesManager {
         this.Trips.hasMany(this.StopTimes, {foreignKey: "trip_id"});
 
         
-        Trips.belongsTo(Calendars, { foreignKey: "service_id", constraints: false });
-        Calendars.hasMany(Trips, { foreignKey: "service_id", constraints: false });
+        this.Trips.belongsTo(this.Calendars, { foreignKey: "service_id", constraints: false });
+        this.Calendars.hasMany(this.Trips, { foreignKey: "service_id", constraints: false });
         this.region = null;
     }
 
