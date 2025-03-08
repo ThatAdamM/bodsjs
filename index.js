@@ -618,7 +618,7 @@ class TimetablesManager {
             wheelchair_accessible: DataTypes.BOOLEAN,
             trip_direction_name: DataTypes.STRING,
             vehicle_journey_code: DataTypes.STRING
-        }, {database, modelName});
+        });
         // Trips <=-> Routes
         this.Trips.belongsTo(this.Routes, {foreignKey: "route_id"});
         this.Routes.hasMany(this.Trips, {foreignKey: "route_id"});
