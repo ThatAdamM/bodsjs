@@ -313,7 +313,7 @@ async function main(region) {
                         let obj = {}, splitline = line.split(",");
                         for (const part in headerLine) {
                             obj[headerLine[part]] = isNull(splitline[part].replace(/"/gm, ""));
-                            if (headerLine[part] == "start_date" || headerLine[part] == "end_date") obj[headerLine[part]] = new Date(splitline[part].substring(0, 4) + "-" + splitline[part].substring(4, 6) + "-" + splitline[part].substring(6, 8))
+                            if (headerLine[part].includes("date") || headerLine[part].includes("date")) obj[headerLine[part]] = new Date(splitline[part].substring(0, 4) + "-" + splitline[part].substring(4, 6) + "-" + splitline[part].substring(6, 8) + "T00:00:00")
                         };
                         runningSaves++;
 
