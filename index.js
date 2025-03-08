@@ -530,9 +530,9 @@ class TimetablesManager {
             exception_type: DataTypes.NUMBER
         });
         
-        // CalendarDates <=-> Calendars
-        this.CalendarDates.belongsTo(this.Calendars, {foreignKey: "service_id"});
-        this.Calendars.hasMany(this.CalendarDates, {foreignKey: "service_id"});
+            // CalendarDates <=-> Calendars
+            CalendarDates.belongsTo(Calendars, { foreignKey: "service_id", constraints: false });
+            Calendars.hasMany(CalendarDates, { foreignKey: "service_id", constraints: false });
 
         /**
          * Routes database access
@@ -626,6 +626,9 @@ class TimetablesManager {
         this.StopTimes.belongsTo(this.Trips, {foreignKey: "trip_id"});
         this.Trips.hasMany(this.StopTimes, {foreignKey: "trip_id"});
 
+        
+        Trips.belongsTo(Calendars, { foreignKey: "service_id", constraints: false });
+        Calendars.hasMany(Trips, { foreignKey: "service_id", constraints: false });
         this.region = null;
     }
 

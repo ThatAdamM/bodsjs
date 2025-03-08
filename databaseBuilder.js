@@ -175,7 +175,7 @@ async function main(region) {
             const Calendars = database.define("Calendar", {
                 service_id: {
                     primaryKey: true,
-                    type: DataTypes.NUMBER
+                    type: DataTypes.INTEGER
                 },
                 monday: DataTypes.NUMBER,
                 tuesday: DataTypes.NUMBER,
@@ -189,15 +189,15 @@ async function main(region) {
             });
 
             const CalendarDates = database.define("CalendarDate", {
-                service_id: DataTypes.NUMBER,
+                service_id: DataTypes.INTEGER,
                 date: DataTypes.DATE,
                 exception_type: DataTypes.NUMBER
             });
 
 
             // CalendarDates <=-> Calendars
-            //CalendarDates.belongsTo(Calendars, { foreignKey: "service_id" });
-            //Calendars.hasMany(CalendarDates, { foreignKey: "service_id" });
+            CalendarDates.belongsTo(Calendars, { foreignKey: "service_id", constraints: false });
+            Calendars.hasMany(CalendarDates, { foreignKey: "service_id", constraints: false });
 
             const Routes = database.define("Route", {
                 route_id: {
@@ -257,7 +257,9 @@ async function main(region) {
 
             const Trips = database.define("Trip", {
                 route_id: DataTypes.NUMBER,
-                service_id: DataTypes.NUMBER,
+                service_id: {
+                    type: DataTypes.INTEGER
+                },
                 trip_id: {
                     primaryKey: true,
                     type: DataTypes.STRING
@@ -283,10 +285,12 @@ async function main(region) {
             // Trips <==> Shapes
 
             // Trips <=-> Calendar
-            //Trips.belongsTo(Calendars, { foreignKey: "service_id" });
-            //Calendars.hasMany(Trips, { foreignKey: "service_id" });
+            Trips.belongsTo(Calendars, { foreignKey: "service_id", constraints: false });
+            Calendars.hasMany(Trips, { foreignKey: "service_id", constraints: false });
 
-            await database.sync({force:true});
+            await database.sync({ force: true });
+
+            console.log(await database.query(`SELECT DISTINCT service_id FROM Calendars; SELECT DISTINCT service_id FROM Trips;`))
             console.log(`[i] Database models created!
                 Beginning to add to tables. This is gonna take a few minutes. 
                 Go grab a coffee, we'll work on it!`)
@@ -309,14 +313,13 @@ async function main(region) {
                         let obj = {}, splitline = line.split(",");
                         for (const part in headerLine) {
                             obj[headerLine[part]] = isNull(splitline[part].replace(/"/gm, ""));
-                            if(headerLine[part] == "start_date" || headerLine[part] == "end_date") obj[headerLine[part]] = new Date(splitline[part].substring(0, 4) + "-" + splitline[part].substring(4, 6) + "-" + splitline[part].substring(6, 8))
+                            if (headerLine[part] == "start_date" || headerLine[part] == "end_date") obj[headerLine[part]] = new Date(splitline[part].substring(0, 4) + "-" + splitline[part].substring(4, 6) + "-" + splitline[part].substring(6, 8))
                         };
                         runningSaves++;
 
                         objs.push(obj);
 
                         if (runningSaves > 2056) {
-
                             await model.bulkCreate(objs);
                             objs = [];
                             runningSaves = 0;
@@ -360,11 +363,11 @@ async function main(region) {
                 [path.join(__dirname, "/temp/agency.txt"), Agencies],
                 [path.join(__dirname, "/temp/routes.txt"), Routes],
                 [path.join(__dirname, "/temp/stops.txt"), Stops],
-                [path.join(__dirname, "/temp/shapes.txt"), Shapes],
                 [path.join(__dirname, "/temp/calendar.txt"), Calendars],
                 [path.join(__dirname, "/temp/calendar_dates.txt"), CalendarDates],
                 [path.join(__dirname, "/temp/trips.txt"), Trips],
                 [path.join(__dirname, "/temp/stop_times.txt"), StopTimes],
+                [path.join(__dirname, "/temp/shapes.txt"), Shapes],
             ];
 
             for (const file of filesToConvert) {
