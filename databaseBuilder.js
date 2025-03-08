@@ -78,11 +78,11 @@ async function main(region) {
         let zipWriteStream;
         try {
             await fs.promises.mkdir(path.join(__dirname, "/temp"));
-        } catch(e) {
+        } catch (e) {
             // Ah well, no folder, no worries :D
         }
         zipWriteStream = fs.createWriteStream(path.join(__dirname, "/temp/temp.zip"))
-        
+
         res.body.pipe(zipWriteStream);
         res.body.on("end", async () => {
             console.log("[i] Downloaded the requested GTFS ZIP file. Un-zipping")
@@ -155,6 +155,9 @@ async function main(region) {
                 storage: path.join(process.cwd(), "/.bods-data/database.sqlite"),
                 logging: () => { }
             });
+
+            await database.query('PRAGMA foreign_keys = ON;');
+
             // Create database tables
             const Agencies = database.define("Agency", {
                 agency_id: {
@@ -191,6 +194,11 @@ async function main(region) {
                 exception_type: DataTypes.NUMBER
             });
 
+
+            // CalendarDates <=-> Calendars
+            //CalendarDates.belongsTo(Calendars, { foreignKey: "service_id" });
+            //Calendars.hasMany(CalendarDates, { foreignKey: "service_id" });
+
             const Routes = database.define("Route", {
                 route_id: {
                     primaryKey: true,
@@ -201,6 +209,10 @@ async function main(region) {
                 route_long_name: DataTypes.STRING,
                 route_type: DataTypes.NUMBER
             })
+
+            // Routes <=-> Agencies
+            Routes.belongsTo(Agencies, { foreignKey: "agency_id" });
+            Agencies.hasMany(Routes, { foreignKey: "agency_id" });
 
             const Shapes = database.define("Shape", {
                 shape_id: DataTypes.STRING,
@@ -239,6 +251,10 @@ async function main(region) {
                 platform_code: DataTypes.STRING
             });
 
+
+            StopTimes.belongsTo(Stops, { foreignKey: "stop_id" });
+            Stops.hasMany(StopTimes, { foreignKey: "stop_id" });
+
             const Trips = database.define("Trip", {
                 route_id: DataTypes.NUMBER,
                 service_id: DataTypes.NUMBER,
@@ -249,16 +265,33 @@ async function main(region) {
                 trip_headsign: DataTypes.STRING,
                 direction_id: DataTypes.NUMBER,
                 block_id: DataTypes.STRING,
-                shape_id: DataTypes.STRING,
+                shape_id: {
+                    allowNull: true,
+                    type: DataTypes.STRING,
+                },
                 wheelchair_accessible: DataTypes.BOOLEAN,
                 trip_direction_name: DataTypes.STRING,
                 vehicle_journey_code: DataTypes.STRING
             });
 
-            await database.sync();
+            // Trips <=-> Routes
+            Trips.belongsTo(Routes, { foreignKey: "route_id" });
+            Routes.hasMany(Trips, { foreignKey: "route_id" });
+            // Trips <-=> StopTimes
+            StopTimes.belongsTo(Trips, { foreignKey: "trip_id" });
+            Trips.hasMany(StopTimes, { foreignKey: "trip_id" });
+            // Trips <==> Shapes
+
+            // Trips <=-> Calendar
+            //Trips.belongsTo(Calendars, { foreignKey: "service_id" });
+            //Calendars.hasMany(Trips, { foreignKey: "service_id" });
+
+            await database.sync({force:true});
             console.log(`[i] Database models created!
                 Beginning to add to tables. This is gonna take a few minutes. 
                 Go grab a coffee, we'll work on it!`)
+
+            let isNull = (line) => line.length == 0 ? null : line;
 
             let LineByLineReader = require('line-by-line'), totalLinesCount = 0, index = 0;
             async function addAllToDatabase(file, model) {
@@ -275,7 +308,8 @@ async function main(region) {
                     } else {
                         let obj = {}, splitline = line.split(",");
                         for (const part in headerLine) {
-                            obj[headerLine[part]] = splitline[part];
+                            obj[headerLine[part]] = isNull(splitline[part].replace(/"/gm, ""));
+                            if(headerLine[part] == "start_date" || headerLine[part] == "end_date") obj[headerLine[part]] = new Date(splitline[part].substring(0, 4) + "-" + splitline[part].substring(4, 6) + "-" + splitline[part].substring(6, 8))
                         };
                         runningSaves++;
 
@@ -286,7 +320,7 @@ async function main(region) {
                             await model.bulkCreate(objs);
                             objs = [];
                             runningSaves = 0;
-                            
+
                             lr.resume();
                         } else {
                             lr.resume();
@@ -295,8 +329,9 @@ async function main(region) {
                 });
                 return await new Promise((resolve, reject) => {
                     lr.on("end", async () => {
-
                         await model.bulkCreate(objs);
+                        console.log((await model.findAll()).length, "Lines inserted")
+                        await model.sync();
                         objs = [];
                         runningSaves = 0;
                         resolve(file);
@@ -322,20 +357,20 @@ async function main(region) {
             // Parse all...
             let totalDone = 0;
             let filesToConvert = [
-                [path.join(__dirname, "/temp/routes.txt"), Routes],
                 [path.join(__dirname, "/temp/agency.txt"), Agencies],
-                [path.join(__dirname, "/temp/stop_times.txt"), StopTimes],
-                [path.join(__dirname, "/temp/shapes.txt"), Shapes],
+                [path.join(__dirname, "/temp/routes.txt"), Routes],
                 [path.join(__dirname, "/temp/stops.txt"), Stops],
-                [path.join(__dirname, "/temp/trips.txt"), Trips],
+                [path.join(__dirname, "/temp/shapes.txt"), Shapes],
                 [path.join(__dirname, "/temp/calendar.txt"), Calendars],
                 [path.join(__dirname, "/temp/calendar_dates.txt"), CalendarDates],
+                [path.join(__dirname, "/temp/trips.txt"), Trips],
+                [path.join(__dirname, "/temp/stop_times.txt"), StopTimes],
             ];
 
-            filesToConvert.forEach(async (file) => {
-                addAllToDatabase(file[0], file[1]).then(checkForDone);
+            for (const file of filesToConvert) {
+                await addAllToDatabase(file[0], file[1]).then(checkForDone);
                 totalLinesCount += await fileLineCount(file[0]);
-            });
+            };
 
             // Done! Clean up the other files...
             function checkForDone(fileJustDone) {

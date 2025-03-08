@@ -529,6 +529,10 @@ class TimetablesManager {
             date: DataTypes.DATE,
             exception_type: DataTypes.NUMBER
         });
+        
+        // CalendarDates <=-> Calendars
+        this.CalendarDates.belongsTo(this.Calendars, {foreignKey: "service_id"});
+        this.Calendars.hasMany(this.CalendarDates, {foreignKey: "service_id"});
 
         /**
          * Routes database access
@@ -543,6 +547,10 @@ class TimetablesManager {
             route_long_name: DataTypes.STRING,
             route_type: DataTypes.NUMBER
         })
+
+        // Routes <=-> Agencies
+        this.Routes.belongsTo(this.Agencies, { foreignKey: "agency_id" });
+        this.Agencies.hasMany(this.Routes, { foreignKey: "agency_id" });
 
         /**
          * Route Shapes database access
@@ -589,6 +597,9 @@ class TimetablesManager {
             parent_station: DataTypes.STRING,
             platform_code: DataTypes.STRING
         });
+        this.StopTimes.belongsTo(this.Stops, {foreignKey: "stop_id"});
+        this.Stops.hasMany(this.StopTimes, {foreignKey: "stop_id"});
+        
 
         /**
          * Trips database access
@@ -607,7 +618,14 @@ class TimetablesManager {
             wheelchair_accessible: DataTypes.BOOLEAN,
             trip_direction_name: DataTypes.STRING,
             vehicle_journey_code: DataTypes.STRING
-        });
+        }, {database, modelName});
+        // Trips <=-> Routes
+        this.Trips.belongsTo(this.Routes, {foreignKey: "route_id"});
+        this.Routes.hasMany(this.Trips, {foreignKey: "route_id"});
+        // Trips <-=> StopTimes
+        this.StopTimes.belongsTo(this.Trips, {foreignKey: "trip_id"});
+        this.Trips.hasMany(this.StopTimes, {foreignKey: "trip_id"});
+
         this.region = null;
     }
 
@@ -742,7 +760,7 @@ class TimetablesManager {
             }
         })
     }
-    
+
     /**
      * Gets the stop by its code (often printed on signage at the stop)
      * @param {String} code The code to search for
